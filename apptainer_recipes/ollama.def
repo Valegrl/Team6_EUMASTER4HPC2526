@@ -1,0 +1,22 @@
+Bootstrap: docker
+From: ollama/ollama:latest
+
+%post
+    # Install any additional dependencies if needed
+    echo "Ollama container built successfully"
+
+%runscript
+    # Start Ollama service
+    exec ollama serve
+
+%labels
+    Author Team6
+    Version 0.1.0
+    Description Ollama LLM inference service for benchmarking
+
+%help
+    This container runs the Ollama LLM inference service.
+    Usage:
+        apptainer run ollama.sif
+    Or with GPU support:
+        apptainer run --nv ollama.sif

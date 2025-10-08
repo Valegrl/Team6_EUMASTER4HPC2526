@@ -1,0 +1,20 @@
+Bootstrap: docker
+From: chromadb/chroma:latest
+
+%post
+    # Install any additional dependencies if needed
+    echo "ChromaDB container built successfully"
+
+%runscript
+    # Start ChromaDB server
+    exec chroma run --host 0.0.0.0 --port 8001
+
+%labels
+    Author Team6
+    Version 0.1.0
+    Description ChromaDB vector database for benchmarking
+
+%help
+    This container runs the ChromaDB vector database service.
+    Usage:
+        apptainer run chromadb.sif

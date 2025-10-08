@@ -1,0 +1,29 @@
+Bootstrap: docker
+From: postgres:16
+
+%environment
+    export POSTGRES_PASSWORD=benchmark
+    export POSTGRES_DB=benchmark_db
+    export PGDATA=/var/lib/postgresql/data
+
+%post
+    # Install any additional dependencies if needed
+    echo "PostgreSQL container built successfully"
+
+%runscript
+    # Start PostgreSQL server
+    exec postgres
+
+%labels
+    Author Team6
+    Version 0.1.0
+    Description PostgreSQL database for benchmarking
+
+%help
+    This container runs the PostgreSQL database service.
+    Usage:
+        apptainer run postgres.sif
+    
+    Default credentials:
+        Database: benchmark_db
+        Password: benchmark
