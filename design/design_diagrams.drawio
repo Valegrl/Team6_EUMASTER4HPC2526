@@ -117,10 +117,13 @@
         </mxGraphModel>
     </diagram>
     <diagram id="AgCj4bqLNNsUjyXq4bYV" name="Sequence Diagram">
-        <mxGraphModel dx="928" dy="454" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+        <mxGraphModel dx="1856" dy="2008" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
+                <mxCell id="JBXzfq5udgEYjD1c3KkV-1" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=default;strokeColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="20" y="-10" width="1160" height="920" as="geometry"/>
+                </mxCell>
                 <mxCell id="gID3y4UOU3TjgEdUxBEG-17" value="record_metrics()" style="html=1;verticalAlign=bottom;startArrow=oval;endArrow=block;startSize=8;curved=0;rounded=0;entryX=0;entryY=0;entryDx=0;entryDy=5;startFill=1;" parent="1" source="gID3y4UOU3TjgEdUxBEG-10" target="gID3y4UOU3TjgEdUxBEG-16" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint x="745" y="365" as="sourcePoint"/>
@@ -307,7 +310,7 @@
         </mxGraphModel>
     </diagram>
     <diagram id="Iv8ddeUfORLYN6_OiMKp" name="Component Diagram">
-        <mxGraphModel dx="928" dy="729" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+        <mxGraphModel dx="928" dy="454" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
