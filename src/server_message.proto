@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package server;
+
+// Message sent from server to client
+message ServerMessage {
+    int32 id = 1;
+    string service = 2;
+    int64 timestamp = 3;
+}
+
+message ServerResponseMessage {
+    int32 id = 1;
+    bool status = 2;
+    string address = 3;
+    int64 port = 4;
+    int64 timestamp = 5;
+} 
