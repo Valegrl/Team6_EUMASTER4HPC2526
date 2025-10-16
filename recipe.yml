@@ -1,0 +1,7 @@
+services:
+  - service_name: example-service-1
+    client_count: 10
+    requests_per_second: 100
+  - service_name: example-service-2
+    client_count: 5
+    requests_per_second: 50
