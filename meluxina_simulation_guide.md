@@ -97,23 +97,23 @@ echo $PROJECT  # Should show your project path
 **Commands**:
 ```bash
 module purge
-module load Apptainer
-module load Python/3.11.3-GCCcore-12.3.0
+module add Apptainer
+module load Python/3.12.3-GCCcore-13.3.0 
 ```
 
 **What this does**:
 - `module purge`: Clears any previously loaded modules to avoid conflicts
-- `module load Apptainer`: Loads the containerization tool for running services
-- `module load Python`: Loads Python 3.11 with required libraries
+- `module add Apptainer`: Adds the containerization tool for running services
+- `module load Python`: Loads Python 3.12.3 with required libraries
 
 **Why each module**:
 - **Apptainer**: Runs containerized services (Ollama, vLLM, ChromaDB, PostgreSQL) in HPC environment
-- **Python 3.11**: Required for the benchmarking framework code
+- **Python 3.12.3**: Required for the benchmarking framework code
 
 **Verification**:
 ```bash
 apptainer --version  # Should show: apptainer version 1.x.x
-python --version     # Should show: Python 3.11.3
+python --version     # Should show: Python 3.12.3
 ```
 
 ---
@@ -124,8 +124,8 @@ python --version     # Should show: Python 3.11.3
 
 **Command**:
 ```bash
-git clone https://github.com/Valegrl/prova_team6.git
-cd prova_team6
+git clone https://github.com/Valegrl/Team6_EUMASTER4HPC2526.git
+cd Team6_EUMASTER4HPC2526
 ```
 
 **What this does**: Downloads the complete AI Factory Benchmarking Framework to your project directory.
@@ -157,7 +157,7 @@ source venv/bin/activate
 
 **Verification**:
 ```bash
-which python  # Should show: .../prova_team6/venv/bin/python
+which python  # Should show: .../Team6_EUMASTER4HPC2526/venv/bin/python
 ```
 
 ### Step 4.3: Install Python Dependencies
@@ -277,6 +277,10 @@ postgres_16.sif          # ~300 MB
 **Test a container**:
 ```bash
 apptainer exec containers/ollama_ollama.sif ollama --version
+```
+Not working, maybe:
+```bash
+apptainer exec containers/ollama_latest.sif ollama serve
 ```
 
 **What this does**: Runs a command inside the container to verify it works.
@@ -527,7 +531,8 @@ VALIDATION SUMMARY
   pip install -r requirements.txt
   
   # If modules not loaded:
-  module load Apptainer Python/3.11.3-GCCcore-12.3.0
+  module add Apptainer
+  module load Python/3.12.3-GCCcore-13.3.0
   
   # If directories missing:
   mkdir -p logs reports containers
@@ -621,10 +626,11 @@ salloc --partition=gpu --account=p200981 --qos=default \
 hostname  # Should show: mel-XXXX (not login node)
 
 # Load modules again (compute node environment)
-module load Apptainer Python/3.11.3-GCCcore-12.3.0
+module add Apptainer
+module load Python/3.12.3-GCCcore-13.3.0
 
 # Activate virtual environment
-cd /path/to/prova_team6
+cd /path/to/Team6_EUMASTER4HPC2526
 source venv/bin/activate
 
 # Run benchmark
@@ -1376,7 +1382,8 @@ cat logs/benchmark_1234567.err
   ```bash
   # Add to script or run manually:
   . /etc/profile.d/modules.sh
-  module load Apptainer Python
+  module add Apptainer
+  module load Python
   ```
 
 - **File not found**
@@ -1385,7 +1392,7 @@ cat logs/benchmark_1234567.err
   ```
   Fix: Ensure working directory is correct in SLURM script:
   ```bash
-  #SBATCH --chdir=/path/to/prova_team6
+  #SBATCH --chdir=/path/to/Team6_EUMASTER4HPC2526
   ```
 
 - **Permission denied**
@@ -1583,7 +1590,7 @@ pip install --user -r requirements.txt
 
 **Resources**:
 1. **MeluXina Documentation**: https://docs.lxp.lu/
-2. **Project Issues**: https://github.com/Valegrl/prova_team6/issues
+2. **Project Issues**: https://github.com/Valegrl/Team6_EUMASTER4HPC2526/issues
 3. **SLURM Documentation**: https://slurm.schedmd.com/
 4. **Apptainer Documentation**: https://apptainer.org/docs/
 
@@ -1644,7 +1651,7 @@ For services needing special startup:
 #SBATCH --time=01:00:00
 
 # Load modules
-module load Apptainer
+module add Apptainer
 
 # Custom environment
 export CUSTOM_VAR=value
@@ -1945,7 +1952,8 @@ Complete workflow checklist:
 
 ```bash
 # Setup
-module load Apptainer Python/3.11.3-GCCcore-12.3.0
+module add Apptainer
+module load Python/3.12.3-GCCcore-13.3.0
 source venv/bin/activate
 
 # Validation
