@@ -22,6 +22,8 @@ if [ ! -f "ollama_ollama.sif" ]; then
     apptainer pull docker://ollama/ollama
 fi
 
+echo $(hostname) > ollama_host
+
 # Start the service
 echo "Starting ollama-llama2..."
 apptainer exec --nv ollama_ollama.sif ollama serve
