@@ -276,12 +276,14 @@ postgres_16.sif          # ~300 MB
 
 **Test a container**:
 ```bash
-apptainer exec containers/ollama_ollama.sif ollama --version
-```
-Not working, maybe:
-```bash
 apptainer exec containers/ollama_latest.sif ollama serve
 ```
+
+On another node:
+```bash
+apptainer exec --env OLLAMA_HOST=http://<server_hostname>:11434 containers/ollama_latest.sif ollama list
+```
+
 
 **What this does**: Runs a command inside the container to verify it works.
 
