@@ -4,7 +4,7 @@
 # Checks if the environment is ready for AI Factory benchmarking
 #
 
-set -e
+# set -e
 
 echo "============================================================"
 echo "AI Factory Benchmarking Framework - MeluXina Validation"
