@@ -1,0 +1,87 @@
+# AI Factory Benchmarking Recipe Configuration
+
+benchmark:
+  name: "AI Factory Services Benchmark"
+  description: "Comprehensive benchmarking of AI inference and storage services"
+  duration: 300  # Total benchmark duration in seconds
+
+services:
+  # Ollama LLM Inference Service
+  - service_name: ollama-llama2
+    service_type: ollama
+    container_image: docker://ollama/ollama
+    port: 11434
+    client_count: 5
+    requests_per_second: 10
+    duration: 60
+    service_url: http://localhost:11434
+    slurm:
+      partition: gpu
+      account: p200981
+      time: "01:00:00"
+      nodes: 1
+      ntasks: 1
+      qos: default
+    model: llama2
+    
+  # vLLM Inference Service
+  - service_name: vllm-inference
+    service_type: vllm
+    container_image: docker://vllm/vllm-openai:latest
+    port: 8000
+    client_count: 3
+    requests_per_second: 5
+    duration: 60
+    service_url: http://localhost:8000
+    slurm:
+      partition: gpu
+      account: p200981
+      time: "01:00:00"
+      nodes: 1
+      ntasks: 1
+      qos: default
+    model: facebook/opt-125m
+    
+  # Vector Database - ChromaDB
+  - service_name: chromadb
+    service_type: vectordb
+    container_image: docker://chromadb/chroma:latest
+    port: 8001
+    client_count: 10
+    requests_per_second: 50
+    duration: 60
+    service_url: http://localhost:8001
+    slurm:
+      partition: cpu
+      account: p200981
+      time: "00:30:00"
+      nodes: 1
+      ntasks: 1
+      qos: default
+      
+  # PostgreSQL Database
+  - service_name: postgresql
+    service_type: database
+    container_image: docker://postgres:16
+    port: 5432
+    client_count: 15
+    requests_per_second: 100
+    duration: 60
+    service_url: postgresql://localhost:5432
+    slurm:
+      partition: cpu
+      account: p200981
+      time: "00:30:00"
+      nodes: 1
+      ntasks: 1
+      qos: default
+    environment:
+      POSTGRES_PASSWORD: benchmark
+      POSTGRES_DB: benchmark_db
+
+# Global configuration
+global:
+  log_level: INFO
+  metrics_db: metrics.db
+  reports_dir: reports
+  logs_dir: logs

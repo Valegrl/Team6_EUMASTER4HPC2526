@@ -75,7 +75,32 @@ class BenchmarkOrchestrator:
             
             # Wait for services to be ready
             logger.info("Waiting for services to initialize...")
-            time.sleep(5)
+            time.sleep(30)  # Increased wait time for services to fully start
+            
+            # Step 3.5: Retrieve service endpoints
+            logger.info("Step 3.5: Retrieving service endpoints...")
+            service_endpoints = {}
+            for service_manager in self.services:
+                service_name = service_manager.service_name
+                
+                # Try to get endpoint with retries
+                max_retries = 10
+                endpoint_url = None
+                for attempt in range(max_retries):
+                    endpoint_url = service_manager.get_service_url()
+                    if endpoint_url:
+                        logger.info(f"  {service_name}: {endpoint_url}")
+                        service_endpoints[service_name] = endpoint_url
+                        break
+                    else:
+                        logger.warning(f"  {service_name}: Endpoint not ready, retrying ({attempt+1}/{max_retries})...")
+                        time.sleep(3)
+                
+                if not endpoint_url:
+                    logger.error(f"  {service_name}: Failed to retrieve endpoint after {max_retries} attempts")
+                    raise RuntimeError(f"Service {service_name} endpoint not available")
+            
+            logger.info(f"Retrieved {len(service_endpoints)} service endpoints")
             
             # Step 4: Setup clients and run benchmarks
             logger.info("Step 4: Running benchmarks...")
@@ -83,7 +108,15 @@ class BenchmarkOrchestrator:
                 service_name = service_config['service_name']
                 logger.info(f"Benchmarking service: {service_name}")
                 
-                # Create and run client
+                # Get the actual service URL from the endpoint we retrieved
+                if service_name in service_endpoints:
+                    service_config['service_url'] = service_endpoints[service_name]
+                    logger.info(f"  Using service URL: {service_config['service_url']}")
+                else:
+                    logger.error(f"  No endpoint found for {service_name}, skipping...")
+                    continue
+                
+                # Create and run client with the actual service URL
                 client = BenchmarkClient(service_config)
                 
                 # Log benchmark configuration

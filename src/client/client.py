@@ -45,10 +45,15 @@ class BenchmarkClient:
         self.model = service_config.get('model', 'llama2')
         self.results: List[RequestResult] = []
         
+        logger.info(f"Initialized BenchmarkClient for {self.service_name}")
+        logger.info(f"  Service URL: {self.service_url}")
+        logger.info(f"  Service Type: {self.service_type}")
+        
     def setup(self):
         """Setup the client (called before starting requests)"""
         logger.info(f"Setting up client for {self.service_name}")
-        logger.info(f"Client count: {self.client_count}, RPS: {self.requests_per_second}")
+        logger.info(f"  Target URL: {self.service_url}")
+        logger.info(f"  Client count: {self.client_count}, RPS: {self.requests_per_second}")
         
     def send_request(self) -> RequestResult:
         """

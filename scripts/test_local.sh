@@ -8,6 +8,9 @@ echo "AI Factory Benchmarking Framework"
 echo "Local Test Run"
 echo "======================================"
 
+module add Apptainer
+module add Python/3.12.3-GCCcore-13.3.0
+
 # Create necessary directories
 mkdir -p logs reports
 
