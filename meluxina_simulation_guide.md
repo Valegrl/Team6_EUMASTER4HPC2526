@@ -282,6 +282,7 @@ apptainer exec containers/ollama_latest.sif ollama serve
 On another node:
 ```bash
 apptainer exec --env OLLAMA_HOST=http://<server_hostname>:11434 containers/ollama_latest.sif ollama list
+apptainer exec --env OLLAMA_HOST=http://<server_hostname>:11434 containers/ollama_latest.sif ollama pull <model_name>
 ```
 
 
