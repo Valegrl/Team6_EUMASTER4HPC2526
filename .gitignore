@@ -1,0 +1,75 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+logs/*.log
+logs/*.out
+logs/*.err
+*.log
+
+# Reports
+reports/*.json
+reports/*.html
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Metrics
+metrics.db
+
+# Generated containers
+containers/
+*.sif
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Slurm
+slurm-*.out
+scripts/slurm/*_service.sh
+
+# Backup
+*_backup.md
+README_old.md

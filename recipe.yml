@@ -1,7 +1,32 @@
+# AI Factory Benchmarking Recipe Configuration
+
+benchmark:
+  name: "AI Factory Services Benchmark"
+  description: "Comprehensive benchmarking of AI inference and storage services"
+  duration: 300  # Total benchmark duration in seconds
+
 services:
-  - service_name: example-service-1
-    client_count: 10
-    requests_per_second: 100
-  - service_name: example-service-2
+  # Ollama LLM Inference Service
+  - service_name: ollama-llama2
+    service_type: ollama
+    container_image: containers/ollama_latest.sif
+    port: 11434
     client_count: 5
-    requests_per_second: 50
+    requests_per_second: 10
+    duration: 60
+    service_url: http://localhost:11434
+    slurm:
+      partition: gpu
+      account: p200981
+      time: "01:00:00"
+      nodes: 1
+      ntasks: 1
+      qos: default
+    model: llama2
+    
+# Global configuration
+global:
+  log_level: INFO
+  metrics_db: metrics.db
+  reports_dir: reports
+  logs_dir: logs

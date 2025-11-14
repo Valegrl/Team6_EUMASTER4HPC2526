@@ -1,0 +1,25 @@
+Bootstrap: docker
+From: vllm/vllm-openai:latest
+
+%post
+    # Install any additional dependencies if needed
+    echo "vLLM container built successfully"
+
+%runscript
+    # Start vLLM OpenAI-compatible server
+    exec python -m vllm.entrypoints.openai.api_server \
+        --model facebook/opt-125m \
+        --host 0.0.0.0 \
+        --port 8000
+
+%labels
+    Author Team6
+    Version 0.1.0
+    Description vLLM inference service for benchmarking
+
+%help
+    This container runs the vLLM inference service with OpenAI-compatible API.
+    Usage:
+        apptainer run vllm.sif
+    Or with GPU support:
+        apptainer run --nv vllm.sif
