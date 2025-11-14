@@ -22,9 +22,7 @@ echo "======================================"
 
 # Load required modules
 module purge
-module load Apptainer
-
-# module load Python/3.11.3-GCCcore-12.3.0
+module add Apptainer
 module load Python/3.12.3-GCCcore-13.3.0 
 
 # Create necessary directories

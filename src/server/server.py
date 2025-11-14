@@ -135,9 +135,14 @@ export SERVICE_PORT={self.port}
 echo "Service Port      = $SERVICE_PORT"
 
 # Export node info to a file that can be read by other processes
-mkdir -p /tmp/$USER
-echo "$COMPUTE_NODE:$SERVICE_PORT" > /tmp/$USER/{self.service_name}_endpoint.txt
-echo "Endpoint info saved to: /tmp/$USER/{self.service_name}_endpoint.txt"
+mkdir -p $HOME/.cache/service_endpoints
+echo "$COMPUTE_NODE:$SERVICE_PORT" > $HOME/.cache/service_endpoints/{self.service_name}_endpoint.txt
+echo "Endpoint info saved to: $HOME/.cache/service_endpoints/{self.service_name}_endpoint.txt"
+echo "LS of endpoint folder:"
+ls $HOME/.cache/service_endpoints/
+echo "Endpoint content:"
+cat $HOME/.cache/service_endpoints/{self.service_name}_endpoint.txt
+
 
 # Load required modules
 module add Apptainer
@@ -285,7 +290,8 @@ wait $SERVICE_PID
         Returns:
             Endpoint string in format "nodeXYZ:port" or None if not available
         """
-        endpoint_file = Path(f"/tmp/{os.environ.get('USER', 'user')}/{self.service_name}_endpoint.txt")
+        home_dir = os.environ.get('HOME', os.path.expanduser('~'))
+        endpoint_file = Path(f"{home_dir}/.cache/service_endpoints/{self.service_name}_endpoint.txt")
         
         try:
             if endpoint_file.exists():
