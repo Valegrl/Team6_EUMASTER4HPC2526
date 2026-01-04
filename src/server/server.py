@@ -29,6 +29,7 @@ class ServiceManager:
         self.container_image = service_config.get('container_image')
         self.service_type = service_config.get('service_type', 'inference')
         self.port = service_config.get('port', 11434)
+        self.model = service_config.get('model', 'facebook/opt-125m')
         self.slurm_config = service_config.get('slurm', {})
         self.job_id = None
         
@@ -171,14 +172,35 @@ fi
         script_content += f"""
 # Start the service in background
 echo "Starting {self.service_name}..."
+"""
+        
+        # For vLLM, downgrade NumPy first to fix compatibility issue
+        if self.service_type == 'vllm':
+            script_content += f"""echo "Fixing NumPy version for vLLM compatibility..."
+apptainer exec --nv {container_sif} pip install --quiet 'numpy<2.3' 2>/dev/null || echo "NumPy already compatible"
 apptainer exec --nv {container_sif} {self._get_service_command()} &
-SERVICE_PID=$!
+"""
+        else:
+            script_content += f"""apptainer exec --nv {container_sif} {self._get_service_command()} &
+"""
+        
+        script_content += f"""SERVICE_PID=$!
 echo "Service started with PID: $SERVICE_PID"
 
 # Wait for service to be ready
 echo "Waiting for service to be ready..."
-sleep 10
-
+"""
+        
+        # Add wait time for vLLM services
+        if self.service_type == 'vllm':
+            script_content += """echo "vLLM takes 60-90 seconds to load the model and capture CUDA graphs..."
+sleep 90
+"""
+        else:
+            script_content += """sleep 10
+"""
+        
+        script_content += f"""
 # Verify service is running (simple check)
 if ps -p $SERVICE_PID > /dev/null; then
     echo "Service is running"
@@ -221,7 +243,8 @@ wait $SERVICE_PID
         if self.service_type == 'ollama' or 'ollama' in self.service_name.lower():
             return "ollama serve"
         elif self.service_type == 'vllm':
-            return "python -m vllm.entrypoints.api_server"
+            # Use python3 and OpenAI-compatible API endpoint
+            return f"python3 -m vllm.entrypoints.openai.api_server --model {self.model} --host 0.0.0.0 --port {self.port}"
         else:
             return "echo 'Service started'"
     

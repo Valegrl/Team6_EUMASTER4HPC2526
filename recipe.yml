@@ -3,13 +3,13 @@
 benchmark:
   name: "AI Factory Services Benchmark"
   description: "Comprehensive benchmarking of AI inference and storage services"
-  duration: 300  # Total benchmark duration in seconds
+  duration: 600  # Total benchmark duration in seconds
 
 services:
-  # Ollama LLM Inference Service
+   # Ollama LLM Inference Service
   - service_name: ollama-llama2
     service_type: ollama
-    container_image: containers/ollama_latest.sif
+    container_image: docker://ollama/ollama
     port: 11434
     client_count: 5
     requests_per_second: 10
@@ -23,6 +23,24 @@ services:
       ntasks: 1
       qos: default
     model: llama2
+    
+  # vLLM Inference Service
+  - service_name: vllm-inference
+    service_type: vllm
+    container_image: docker://vllm/vllm-openai:latest
+    port: 8000
+    client_count: 3
+    requests_per_second: 5
+    duration: 60
+    service_url: http://localhost:8000
+    slurm:
+      partition: gpu
+      account: p200981
+      time: "01:00:00"
+      nodes: 1
+      ntasks: 1
+      qos: default
+    model: facebook/opt-125m
     
 # Global configuration
 global:
