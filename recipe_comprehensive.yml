@@ -1,0 +1,276 @@
+# AI Factory Benchmarking Recipe Configuration
+# Comprehensive template with all supported services
+
+benchmark:
+  name: "AI Factory Comprehensive Benchmark"
+  description: "Full-scale benchmarking of AI Factory components"
+  duration: 3600  # Total benchmark suite duration in seconds
+
+# Global configuration
+global:
+  log_level: INFO
+  metrics_db: metrics.db
+  reports_dir: reports
+  logs_dir: logs
+  pushgateway_url: http://localhost:9091  # Optional: Prometheus Pushgateway
+
+services:
+  # =================================================================
+  # LLM INFERENCE SERVICES
+  # =================================================================
+  
+  # Ollama LLM Inference
+  - service_name: ollama-llama2
+    service_type: ollama
+    container_image: docker://ollama/ollama
+    port: 11434
+    client_count: 5
+    requests_per_second: 10
+    duration: 300
+    service_url: http://localhost:11434
+    slurm:
+      partition: gpu
+      account: p200981
+      time: "01:00:00"
+      nodes: 1
+      ntasks: 1
+      qos: default
+    model: llama2
+    
+  # vLLM High-Performance Inference
+  - service_name: vllm-opt-125m
+    service_type: vllm
+    container_image: docker://vllm/vllm-openai:latest
+    port: 8000
+    client_count: 5
+    requests_per_second: 20
+    duration: 300
+    service_url: http://localhost:8000
+    slurm:
+      partition: gpu
+      account: p200981
+      time: "01:00:00"
+      nodes: 1
+      ntasks: 1
+      qos: default
+    model: facebook/opt-125m
+  
+  # NVIDIA Triton Inference Server
+  - service_name: triton-inference
+    service_type: triton
+    container_image: docker://nvcr.io/nvidia/tritonserver:23.10-py3
+    port: 8000
+    client_count: 10
+    requests_per_second: 50
+    duration: 300
+    service_url: http://localhost:8000
+    slurm:
+      partition: gpu
+      account: p200981
+      time: "01:00:00"
+      nodes: 1
+      ntasks: 1
+      gres: gpu:1
+      qos: default
+    model: resnet50
+  
+  # =================================================================
+  # VECTOR DATABASES
+  # =================================================================
+  
+  # ChromaDB Vector Database
+  - service_name: chromadb
+    service_type: vectordb
+    backend: chromadb
+    container_image: docker://chromadb/chroma:latest
+    host: localhost
+    port: 8000
+    client_count: 10
+    requests_per_second: 50
+    duration: 300
+    slurm:
+      partition: gpu
+      account: p200981
+      time: "01:00:00"
+      nodes: 1
+      ntasks: 1
+      gres: gpu:1
+      qos: default
+    collection_name: benchmark_collection
+    dimension: 384
+    operation_mix:
+      insert: 0.3
+      search: 0.5
+      update: 0.1
+      delete: 0.1
+    batch_size: 10
+    search_k: 10
+  
+  # Faiss Vector Database  
+  - service_name: faiss
+    service_type: vectordb
+    backend: faiss
+    client_count: 10
+    requests_per_second: 100
+    duration: 300
+    slurm:
+      partition: gpu
+      account: p200981
+      time: "01:00:00"
+      nodes: 1
+      ntasks: 1
+      gres: gpu:1
+      qos: default
+    dimension: 384
+    operation_mix:
+      insert: 0.4
+      search: 0.6
+  
+  # Milvus Vector Database
+  - service_name: milvus
+    service_type: vectordb
+    backend: milvus
+    container_image: docker://milvusdb/milvus:latest
+    host: localhost
+    port: 19530
+    client_count: 10
+    requests_per_second: 50
+    duration: 300
+    slurm:
+      partition: gpu
+      account: p200981
+      time: "01:00:00"
+      nodes: 1
+      ntasks: 1
+      gres: gpu:1
+      qos: default
+    collection_name: benchmark_collection
+    dimension: 384
+    operation_mix:
+      insert: 0.3
+      search: 0.6
+      delete: 0.1
+  
+  # Weaviate Vector Database
+  - service_name: weaviate
+    service_type: vectordb
+    backend: weaviate
+    container_image: docker://semitechnologies/weaviate:latest
+    host: localhost
+    port: 8080
+    client_count: 10
+    requests_per_second: 50
+    duration: 300
+    slurm:
+      partition: gpu
+      account: p200981
+      time: "01:00:00"
+      nodes: 1
+      ntasks: 1
+      gres: gpu:1
+      qos: default
+    collection_name: benchmark_collection
+    dimension: 384
+  
+  # =================================================================
+  # RELATIONAL DATABASES
+  # =================================================================
+  
+  # PostgreSQL Database
+  - service_name: postgresql
+    service_type: database
+    backend: postgresql
+    container_image: docker://postgres:16
+    host: localhost
+    port: 5432
+    database: benchmark
+    user: postgres
+    password: benchmark
+    client_count: 20
+    requests_per_second: 100
+    duration: 300
+    slurm:
+      partition: gpu
+      account: p200981
+      time: "01:00:00"
+      nodes: 1
+      ntasks: 1
+      gres: gpu:1
+      qos: default
+    operation_mix:
+      select: 0.4
+      insert: 0.3
+      update: 0.2
+      delete: 0.1
+    batch_size: 1
+    table_name: benchmark_test
+  
+  # =================================================================
+  # OBJECT STORAGE (S3-compatible)
+  # =================================================================
+  
+  # MinIO S3-Compatible Storage
+  - service_name: minio-s3
+    service_type: s3
+    container_image: docker://minio/minio:latest
+    endpoint_url: http://localhost:9000
+    access_key: minioadmin
+    secret_key: minioadmin
+    bucket_name: benchmark-bucket
+    region: us-east-1
+    client_count: 10
+    requests_per_second: 20
+    duration: 300
+    slurm:
+      partition: gpu
+      account: p200981
+      time: "01:00:00"
+      nodes: 1
+      ntasks: 1
+      gres: gpu:1
+      qos: default
+    operation_mix:
+      put: 0.4
+      get: 0.4
+      list: 0.1
+      delete: 0.1
+    object_sizes:
+      1KB: 0.3
+      10KB: 0.3
+      100KB: 0.2
+      1MB: 0.15
+      10MB: 0.05
+  
+  # =================================================================
+  # FILE STORAGE
+  # =================================================================
+  
+  # File System Storage
+  - service_name: file-storage
+    service_type: file_storage
+    base_path: /tmp/benchmark_storage
+    client_count: 10
+    requests_per_second: 50
+    duration: 300
+    slurm:
+      partition: gpu
+      account: p200981
+      time: "01:00:00"
+      nodes: 1
+      ntasks: 1
+      gres: gpu:1
+      qos: default
+    operation_mix:
+      write: 0.4
+      read: 0.4
+      stat: 0.1
+      delete: 0.1
+    file_sizes:
+      1KB: 0.2
+      10KB: 0.2
+      100KB: 0.2
+      1MB: 0.2
+      10MB: 0.1
+      100MB: 0.1
+    use_direct_io: false
+    sync_mode: false

@@ -1,0 +1,45 @@
+# Prometheus configuration for AI Factory Benchmarking
+# Scrapes metrics from pushgateway and metrics exporter
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'ai_factory'
+    environment: 'production'
+
+# Alerting configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# Load rules once and periodically evaluate them
+rule_files:
+  - 'alerts.yml'
+
+# Scrape configurations
+scrape_configs:
+  # Scrape Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Scrape Pushgateway for batch job metrics
+  - job_name: 'pushgateway'
+    honor_labels: true
+    static_configs:
+      - targets: ['localhost:9091']
+
+  # Scrape metrics exporter for real-time benchmark metrics
+  - job_name: 'benchmark_metrics'
+    static_configs:
+      - targets: ['metrics-exporter:8080']
+    scrape_interval: 5s
+    scrape_timeout: 5s
+    metrics_path: '/metrics'
+
+  # Node exporter (if deployed on HPC nodes)
+  - job_name: 'node'
+    static_configs:
+      - targets: []  # Add node exporter targets here

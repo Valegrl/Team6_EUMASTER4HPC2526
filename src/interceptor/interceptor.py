@@ -83,7 +83,12 @@ class MetricsInterceptor:
         Returns:
             List of metrics as dictionaries
         """
-        return [asdict(m) for m in self.metrics]
+        metrics_list = [asdict(m) for m in self.metrics]
+        # Ensure all metrics have service_name for Prometheus compatibility
+        for metric in metrics_list:
+            if 'service_name' not in metric or not metric['service_name']:
+                metric['service_name'] = self.service_name
+        return metrics_list
     
     def get_client_metrics(self, client_id: str) -> List[Dict[str, Any]]:
         """

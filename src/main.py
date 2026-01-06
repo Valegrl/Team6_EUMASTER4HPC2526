@@ -13,11 +13,18 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from middleware.interface import MiddlewareInterface
-from client.client import BenchmarkClient
+from client.unified_client import create_benchmark_client
 from server.server import ServiceManager
 from monitor.monitor import Monitor
 from reporter.reporter import BenchmarkReporter
 from logger.logger import BenchmarkLogger
+from monitoring.prometheus_exporter import PrometheusExporter
+from utils.cli_utils import (
+    print_banner, print_section, print_subsection,
+    print_info, print_success, print_warning, print_error,
+    print_benchmark_config, print_benchmark_results,
+    print_monitoring_info, print_completion_banner
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -26,12 +33,13 @@ logger = logging.getLogger(__name__)
 class BenchmarkOrchestrator:
     """Main orchestrator for the benchmarking framework"""
     
-    def __init__(self, recipe_path: str = "recipe.yml"):
+    def __init__(self, recipe_path: str = "recipe.yml", pushgateway_url: str = None):
         """
         Initialize the orchestrator
         
         Args:
             recipe_path: Path to recipe configuration
+            pushgateway_url: Optional Pushgateway URL (overrides recipe config)
         """
         self.interface = MiddlewareInterface(recipe_path)
         self.benchmark_id = None
@@ -39,6 +47,7 @@ class BenchmarkOrchestrator:
         self.monitor = None
         self.services = []
         self.clients = []
+        self.pushgateway_url = pushgateway_url
         
     def run_benchmark(self):
         """Execute the complete benchmark workflow"""
@@ -113,16 +122,20 @@ class BenchmarkOrchestrator:
                     service_config['service_url'] = service_endpoints[service_name]
                     logger.info(f"  Using service URL: {service_config['service_url']}")
                 else:
-                    logger.error(f"  No endpoint found for {service_name}, skipping...")
+                    logger.warning(f"  No endpoint found for {service_name}, using config URL...")
+                
+                # Create unified client (automatically selects appropriate client type)
+                client = create_benchmark_client(service_config)
+                
+                # Setup client
+                if not client.setup():
+                    logger.error(f"  Failed to setup client for {service_name}, skipping...")
                     continue
                 
-                # Create and run client with the actual service URL
-                client = BenchmarkClient(service_config)
-                
                 # Log benchmark configuration
-                logger.info(f"  Client count: {client.client_count}")
-                logger.info(f"  Requests per second: {client.requests_per_second}")
-                logger.info(f"  Duration: {client.duration}s")
+                logger.info(f"  Client count: {service_config.get('client_count', 1)}")
+                logger.info(f"  Requests per second: {service_config.get('requests_per_second', 10)}")
+                logger.info(f"  Duration: {service_config.get('duration', 60)}s")
                 
                 # Run the actual benchmark
                 from interceptor.interceptor import MetricsInterceptor
@@ -130,13 +143,13 @@ class BenchmarkOrchestrator:
                 
                 try:
                     # Execute real benchmark
-                    logger.info(f"  Starting real benchmark execution...")
+                    logger.info(f"  Starting benchmark execution...")
                     results = client.run()
                     
-                    # Convert RequestResults to metrics format
+                    # Convert results to metrics format
                     for idx, result in enumerate(results):
                         interceptor.record_metrics(
-                            client_id=f"client-{idx % client.client_count}",
+                            client_id=f"client-{idx % service_config.get('client_count', 1)}",
                             duration=result.duration,
                             success=result.success,
                             status_code=result.status_code,
@@ -144,11 +157,20 @@ class BenchmarkOrchestrator:
                             response_size=result.response_size
                         )
                     
-                    logger.info(f"  Completed {len(results)} requests")
+                    logger.info(f"  Completed {len(results)} operations")
+                    
+                    # Print summary
+                    summary = client.get_summary()
+                    logger.info(f"  Summary: {summary['successful']}/{summary['total_requests']} successful ({summary['success_rate']:.2f}%)")
+                    logger.info(f"  Avg latency: {summary['avg_duration']:.3f}s")
                     
                 except Exception as e:
                     logger.error(f"  Benchmark execution failed: {e}")
-                    # Even on failure, record whatever metrics we have
+                    import traceback
+                    traceback.print_exc()
+                finally:
+                    # Always cleanup
+                    client.cleanup()
                 
                 # Store metrics
                 metrics = interceptor.get_metrics()
@@ -158,7 +180,7 @@ class BenchmarkOrchestrator:
                     'total_requests': len(metrics),
                     'successful': sum(1 for m in metrics if m['success']),
                     'failed': sum(1 for m in metrics if not m['success']),
-                    'avg_duration': sum(m['request_duration'] for m in metrics) / len(metrics)
+                    'avg_duration': sum(m['request_duration'] for m in metrics) / len(metrics) if metrics else 0
                 })
                 
                 self.clients.append(client)
@@ -169,6 +191,25 @@ class BenchmarkOrchestrator:
             reporter = BenchmarkReporter(self.benchmark_id)
             report = reporter.generate_report(all_metrics)
             reporter.save_report(report)
+            
+            # Step 5.5: Push metrics to Prometheus Pushgateway (if configured)
+            import os
+            pushgateway_url = (
+                self.pushgateway_url or 
+                self.interface.config.get('global', {}).get('pushgateway_url') or
+                os.environ.get('PUSHGATEWAY_URL')
+            )
+            if pushgateway_url:
+                logger.info(f"Step 5.5: Pushing metrics to Prometheus Pushgateway...")
+                try:
+                    exporter = PrometheusExporter(self.monitor)
+                    success = exporter.push_to_gateway(pushgateway_url, job_name='ai_factory_benchmark')
+                    if success:
+                        logger.info(f"  ✓ Metrics pushed to {pushgateway_url}")
+                    else:
+                        logger.warning(f"  ✗ Failed to push metrics to Pushgateway")
+                except Exception as e:
+                    logger.warning(f"  Failed to push metrics: {e}")
             
             # Print summary
             summary = reporter.generate_text_summary(report)
@@ -207,15 +248,35 @@ def main():
     parser = argparse.ArgumentParser(description='AI Factory Benchmarking Framework')
     parser.add_argument('--recipe', default='recipe.yml',
                        help='Path to recipe configuration file')
+    parser.add_argument('--pushgateway', default=None,
+                       help='Prometheus Pushgateway URL (e.g., http://mel2110:9091)')
     
     args = parser.parse_args()
     
-    logger.info("=" * 60)
-    logger.info("AI Factory Benchmarking Framework")
-    logger.info("=" * 60)
+    # Print enhanced banner
+    print_banner()
+    print_section("AI Factory Benchmarking Framework")
     
-    orchestrator = BenchmarkOrchestrator(args.recipe)
-    orchestrator.run_benchmark()
+    # Show monitoring information
+    print_monitoring_info()
+    
+    orchestrator = BenchmarkOrchestrator(args.recipe, pushgateway_url=args.pushgateway)
+    
+    try:
+        report = orchestrator.run_benchmark()
+        
+        # Print enhanced results
+        if report:
+            print_section("Benchmark Results", style="bold green")
+            print_benchmark_results(report)
+            
+            # Print completion banner
+            report_path = f"reports/{orchestrator.benchmark_id}_report.json"
+            print_completion_banner(orchestrator.benchmark_id, report_path)
+        
+    except Exception as e:
+        print_error(f"Benchmark failed: {e}")
+        raise
 
 
 if __name__ == "__main__":

@@ -1,0 +1,35 @@
+Bootstrap: docker
+From: minio/minio:latest
+
+%environment
+    export MINIO_ROOT_USER=minioadmin
+    export MINIO_ROOT_PASSWORD=minioadmin
+    export MINIO_DOMAIN=localhost
+
+%post
+    # Install any additional dependencies if needed
+    echo "MinIO S3-compatible storage container built successfully"
+
+%runscript
+    # Start MinIO server with GPU support
+    exec minio server /data --console-address ":9001"
+
+%labels
+    Author Team6
+    Version 0.2.0
+    Description MinIO S3-compatible object storage for benchmarking with GPU support
+
+%help
+    This container runs the MinIO S3-compatible object storage service with GPU support.
+    Usage:
+        apptainer run --nv --bind /path/to/data:/data minio.sif
+    
+    Note: Use --nv flag to enable NVIDIA GPU support for GPU-accelerated I/O operations
+    
+    Default credentials:
+        Access Key: minioadmin
+        Secret Key: minioadmin
+    
+    Endpoints:
+        API: http://localhost:9000
+        Console: http://localhost:9001

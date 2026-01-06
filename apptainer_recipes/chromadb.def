@@ -6,15 +6,17 @@ From: chromadb/chroma:latest
     echo "ChromaDB container built successfully"
 
 %runscript
-    # Start ChromaDB server
+    # Start ChromaDB server with GPU support
     exec chroma run --host 0.0.0.0 --port 8001
 
 %labels
     Author Team6
-    Version 0.1.0
-    Description ChromaDB vector database for benchmarking
+    Version 0.2.0
+    Description ChromaDB vector database for benchmarking with GPU support
 
 %help
-    This container runs the ChromaDB vector database service.
+    This container runs the ChromaDB vector database service with GPU support.
     Usage:
-        apptainer run chromadb.sif
+        apptainer run --nv chromadb.sif
+    
+    Note: Use --nv flag to enable NVIDIA GPU support

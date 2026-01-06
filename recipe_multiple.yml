@@ -52,11 +52,12 @@ services:
     duration: 60
     service_url: http://localhost:8001
     slurm:
-      partition: cpu
+      partition: gpu
       account: p200981
       time: "00:30:00"
       nodes: 1
       ntasks: 1
+      gres: gpu:1
       qos: default
       
   # PostgreSQL Database
@@ -69,11 +70,12 @@ services:
     duration: 60
     service_url: postgresql://localhost:5432
     slurm:
-      partition: cpu
+      partition: gpu
       account: p200981
       time: "00:30:00"
       nodes: 1
       ntasks: 1
+      gres: gpu:1
       qos: default
     environment:
       POSTGRES_PASSWORD: benchmark

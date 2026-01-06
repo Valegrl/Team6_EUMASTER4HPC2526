@@ -1,0 +1,36 @@
+Bootstrap: docker
+From: semitechnologies/weaviate:latest
+
+%environment
+    export PERSISTENCE_DATA_PATH=/var/lib/weaviate
+    export QUERY_DEFAULTS_LIMIT=25
+    export AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED=true
+    export DEFAULT_VECTORIZER_MODULE=none
+    export CLUSTER_HOSTNAME=node1
+
+%post
+    # Install any additional dependencies if needed
+    echo "Weaviate vector database container built successfully"
+
+%runscript
+    # Start Weaviate server with GPU support
+    exec /bin/weaviate --host 0.0.0.0 --port 8080 --scheme http
+
+%labels
+    Author Team6
+    Version 0.2.0
+    Description Weaviate vector database for benchmarking with GPU support
+
+%help
+    This container runs the Weaviate vector database service with GPU support.
+    Usage:
+        apptainer run --nv --bind /path/to/data:/var/lib/weaviate weaviate.sif
+    
+    Note: Use --nv flag to enable NVIDIA GPU support for GPU-accelerated similarity search
+    
+    Default configuration:
+        Port: 8080
+        Anonymous access: enabled
+        Vectorizer: none (bring your own vectors)
+    
+    API endpoint: http://localhost:8080

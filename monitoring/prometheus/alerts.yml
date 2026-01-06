@@ -1,0 +1,45 @@
+# Prometheus alerting rules for AI Factory Benchmarking
+
+groups:
+  - name: benchmark_alerts
+    interval: 30s
+    rules:
+      # Alert when benchmark success rate drops below 90%
+      - alert: HighFailureRate
+        expr: (benchmark_requests_failed / benchmark_requests_total) > 0.1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High failure rate detected for {{ $labels.service }}"
+          description: "Benchmark failure rate is {{ $value | humanizePercentage }} for service {{ $labels.service }}"
+
+      # Alert when average response time exceeds threshold
+      - alert: HighLatency
+        expr: (benchmark_request_duration_seconds_sum / benchmark_request_duration_seconds_count) > 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High latency detected for {{ $labels.service }}"
+          description: "Average response time is {{ $value }}s for service {{ $labels.service }}"
+
+      # Alert when no metrics received for 5 minutes
+      - alert: BenchmarkStalled
+        expr: rate(benchmark_requests_total[5m]) == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Benchmark appears to be stalled"
+          description: "No new metrics received for service {{ $labels.service }} in the last 5 minutes"
+
+      # Alert for very high throughput (potential issue)
+      - alert: UnusualThroughput
+        expr: rate(benchmark_requests_total[1m]) > 1000
+        for: 2m
+        labels:
+          severity: info
+        annotations:
+          summary: "Unusually high throughput for {{ $labels.service }}"
+          description: "Current throughput is {{ $value }} requests/sec"

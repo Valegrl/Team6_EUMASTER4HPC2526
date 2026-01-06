@@ -11,18 +11,20 @@ From: postgres:16
     echo "PostgreSQL container built successfully"
 
 %runscript
-    # Start PostgreSQL server
+    # Start PostgreSQL server with GPU support
     exec postgres
 
 %labels
     Author Team6
-    Version 0.1.0
-    Description PostgreSQL database for benchmarking
+    Version 0.2.0
+    Description PostgreSQL database for benchmarking with GPU support
 
 %help
-    This container runs the PostgreSQL database service.
+    This container runs the PostgreSQL database service with GPU support.
     Usage:
-        apptainer run postgres.sif
+        apptainer run --nv postgres.sif
+    
+    Note: Use --nv flag to enable NVIDIA GPU support for GPU-accelerated queries
     
     Default credentials:
         Database: benchmark_db

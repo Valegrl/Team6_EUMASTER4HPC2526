@@ -8,13 +8,17 @@ for integration with Prometheus monitoring and Grafana dashboards.
 
 import sys
 import time
+import logging
 from pathlib import Path
 from typing import List, Dict
+import requests
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from monitor.monitor import Monitor
+
+logger = logging.getLogger(__name__)
 
 
 class PrometheusExporter:
@@ -153,6 +157,59 @@ class PrometheusExporter:
                 lines.append(line)
         
         return '\n'.join(lines)
+    
+    def push_to_gateway(self, gateway_url: str = None, job_name: str = "benchmark"):
+        """
+        Push metrics directly to Prometheus Pushgateway
+        
+        Args:
+            gateway_url: URL of the Pushgateway (e.g., http://mel2110:9091).
+                        If None, will try to get from environment variable PUSHGATEWAY_URL
+            job_name: Job name for grouping metrics
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        import os
+        
+        # Use provided URL or fall back to environment variable
+        if not gateway_url:
+            gateway_url = os.environ.get('PUSHGATEWAY_URL')
+            if not gateway_url:
+                logger.error("No Pushgateway URL provided and PUSHGATEWAY_URL environment variable not set")
+                return False
+        
+        try:
+            metrics = self.export_pushgateway_format(job_name)
+            
+            # Pushgateway URL format: /metrics/job/<JOB_NAME>
+            url = f"{gateway_url.rstrip('/')}/metrics/job/{job_name}"
+            
+            # Add instance label
+            url += f"/instance/{self.monitor.benchmark_id}"
+            
+            logger.info(f"Pushing metrics to Pushgateway: {url}")
+            
+            response = requests.post(
+                url,
+                data=metrics,
+                headers={'Content-Type': 'text/plain; version=0.0.4'},
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                logger.info(f"Successfully pushed metrics to Pushgateway")
+                return True
+            else:
+                logger.error(f"Failed to push metrics: {response.status_code} - {response.text}")
+                return False
+                
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Network error pushing to Pushgateway: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Error pushing to Pushgateway: {e}")
+            return False
 
 
 def main():
@@ -167,8 +224,17 @@ def main():
     parser.add_argument('--db', default='metrics.db', help='Metrics database path')
     parser.add_argument('--pushgateway', action='store_true',
                        help='Format for Prometheus Pushgateway')
+    parser.add_argument('--push', action='store_true',
+                       help='Push metrics to Pushgateway')
+    parser.add_argument('--gateway-url', default='http://localhost:9091',
+                       help='Pushgateway URL')
+    parser.add_argument('--job', default='benchmark',
+                       help='Job name for Pushgateway')
     
     args = parser.parse_args()
+    
+    # Setup logging
+    logging.basicConfig(level=logging.INFO)
     
     # Load monitor with benchmark data
     monitor = Monitor(args.benchmark_id, args.db)
@@ -176,13 +242,22 @@ def main():
     # Create exporter
     exporter = PrometheusExporter(monitor)
     
+    # Push to gateway if requested
+    if args.push:
+        success = exporter.push_to_gateway(args.gateway_url, args.job)
+        if success:
+            print(f"✓ Metrics pushed to {args.gateway_url}")
+        else:
+            print(f"✗ Failed to push metrics")
+            sys.exit(1)
+    
     # Export metrics
     if args.pushgateway:
-        output = exporter.export_pushgateway_format()
+        output = exporter.export_pushgateway_format(args.job)
     else:
         output = exporter.export_metrics(args.output)
     
-    if not args.output:
+    if not args.output and not args.push:
         print(output)
 
 

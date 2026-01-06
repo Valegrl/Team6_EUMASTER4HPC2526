@@ -28,6 +28,7 @@ class MetricStorage:
         """
         self.db_path = db_path
         self._init_database()
+        self.benchmark_id = None  # Will be set by Monitor
     
     def _init_database(self):
         """Initialize database schema"""
