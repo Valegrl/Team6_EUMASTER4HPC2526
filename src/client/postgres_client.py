@@ -50,8 +50,18 @@ class PostgreSQLBenchmarkClient:
         Args:
             config: Configuration with connection details
         """
-        self.host = config.get('host', 'localhost')
-        self.port = config.get('port', 5432)
+        # Parse service_url if provided, otherwise use host and port
+        service_url = config.get('service_url', '')
+        if service_url:
+            # Extract host and port from service_url (e.g., http://mel2159:5432)
+            from urllib.parse import urlparse
+            parsed = urlparse(service_url)
+            self.host = parsed.hostname or config.get('host', 'localhost')
+            self.port = parsed.port or config.get('port', 5432)
+        else:
+            self.host = config.get('host', 'localhost')
+            self.port = config.get('port', 5432)
+            
         self.database = config.get('database', 'benchmark')
         self.user = config.get('user', 'postgres')
         self.password = config.get('password', 'postgres')

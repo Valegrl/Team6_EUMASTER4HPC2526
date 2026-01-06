@@ -3,7 +3,7 @@
 Vector Database Benchmark Client
 
 Performs benchmarking operations against vector databases with GPU acceleration support.
-Supports: ChromaDB, Faiss, Milvus, Weaviate (all with GPU acceleration)
+Supports: ChromaDB, Faiss, Weaviate (all with GPU acceleration)
 Tests: insert, search, update, delete vector operations.
 """
 
@@ -34,7 +34,6 @@ class VectorDBBenchmarkClient:
     
     GPU capabilities by backend:
     - Faiss: Native GPU support via faiss-gpu for indexing and search
-    - Milvus: Native GPU support for vector indexing and query processing
     - ChromaDB: Runs on GPU nodes for integrated AI workflows
     - Weaviate: Runs on GPU nodes for integrated AI workflows
     
@@ -49,9 +48,20 @@ class VectorDBBenchmarkClient:
         Args:
             config: Configuration with connection details
         """
-        self.backend = config.get('backend', 'chromadb')  # chromadb, faiss, milvus, weaviate
-        self.host = config.get('host', 'localhost')
-        self.port = config.get('port', 8000)
+        self.backend = config.get('backend', 'chromadb')  # chromadb, faiss, weaviate
+        
+        # Parse service_url if provided, otherwise use host and port
+        service_url = config.get('service_url', '')
+        if service_url:
+            # Extract host and port from service_url (e.g., http://mel2154:8000)
+            from urllib.parse import urlparse
+            parsed = urlparse(service_url)
+            self.host = parsed.hostname or config.get('host', 'localhost')
+            self.port = parsed.port or config.get('port', 8000)
+        else:
+            self.host = config.get('host', 'localhost')
+            self.port = config.get('port', 8000)
+            
         self.collection_name = config.get('collection_name', 'benchmark_collection')
         self.dimension = config.get('dimension', 384)  # embedding dimension
         self.operation_mix = config.get('operation_mix', {
@@ -76,8 +86,6 @@ class VectorDBBenchmarkClient:
                 return self._connect_chromadb()
             elif self.backend == 'faiss':
                 return self._connect_faiss()
-            elif self.backend == 'milvus':
-                return self._connect_milvus()
             elif self.backend == 'weaviate':
                 return self._connect_weaviate()
             else:
@@ -120,51 +128,15 @@ class VectorDBBenchmarkClient:
             import faiss
             
             # Create a Faiss index
+            # Use IndexFlatL2 which is simple and doesn't have cleanup issues
             self.client = faiss.IndexFlatL2(self.dimension)
+            # Keep reference to prevent garbage collection issues
+            self.faiss_index = self.client
             
             logger.info(f"Initialized Faiss index with dimension {self.dimension}")
             return True
         except Exception as e:
             logger.error(f"Faiss initialization error: {e}")
-            return False
-    
-    def _connect_milvus(self):
-        """Connect to Milvus"""
-        try:
-            from pymilvus import connections, Collection, CollectionSchema, FieldSchema, DataType
-            
-            connections.connect(
-                alias="default",
-                host=self.host,
-                port=self.port
-            )
-            
-            # Create collection if it doesn't exist
-            from pymilvus import utility
-            if not utility.has_collection(self.collection_name):
-                fields = [
-                    FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True),
-                    FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=self.dimension)
-                ]
-                schema = CollectionSchema(fields, description="Benchmark collection")
-                self.collection = Collection(name=self.collection_name, schema=schema)
-                
-                # Create index
-                index_params = {
-                    "metric_type": "L2",
-                    "index_type": "IVF_FLAT",
-                    "params": {"nlist": 1024}
-                }
-                self.collection.create_index(field_name="embedding", index_params=index_params)
-            else:
-                self.collection = Collection(name=self.collection_name)
-            
-            self.collection.load()
-            
-            logger.info(f"Connected to Milvus, collection: {self.collection_name}")
-            return True
-        except Exception as e:
-            logger.error(f"Milvus connection error: {e}")
             return False
     
     def _connect_weaviate(self):
@@ -213,8 +185,6 @@ class VectorDBBenchmarkClient:
                 return self._insert_chromadb(start_time)
             elif self.backend == 'faiss':
                 return self._insert_faiss(start_time)
-            elif self.backend == 'milvus':
-                return self._insert_milvus(start_time)
             elif self.backend == 'weaviate':
                 return self._insert_weaviate(start_time)
         except Exception as e:
@@ -262,25 +232,6 @@ class VectorDBBenchmarkClient:
             vectors_processed=self.batch_size
         )
     
-    def _insert_milvus(self, start_time: float) -> VectorDBRequestResult:
-        """Insert vectors into Milvus"""
-        vectors = self._generate_random_vectors(self.batch_size)
-        
-        entities = [
-            vectors.tolist()
-        ]
-        
-        self.collection.insert(entities)
-        
-        duration = time.time() - start_time
-        return VectorDBRequestResult(
-            timestamp=start_time,
-            duration=duration,
-            success=True,
-            operation_type='INSERT',
-            vectors_processed=self.batch_size
-        )
-    
     def _insert_weaviate(self, start_time: float) -> VectorDBRequestResult:
         """Insert vectors into Weaviate"""
         vectors = self._generate_random_vectors(self.batch_size)
@@ -310,8 +261,6 @@ class VectorDBBenchmarkClient:
                 return self._search_chromadb(start_time)
             elif self.backend == 'faiss':
                 return self._search_faiss(start_time)
-            elif self.backend == 'milvus':
-                return self._search_milvus(start_time)
             elif self.backend == 'weaviate':
                 return self._search_weaviate(start_time)
         except Exception as e:
@@ -347,27 +296,6 @@ class VectorDBBenchmarkClient:
         query_vector = self._generate_random_vector().reshape(1, -1)
         
         distances, indices = self.client.search(query_vector, self.search_k)
-        
-        duration = time.time() - start_time
-        return VectorDBRequestResult(
-            timestamp=start_time,
-            duration=duration,
-            success=True,
-            operation_type='SEARCH',
-            vectors_processed=1
-        )
-    
-    def _search_milvus(self, start_time: float) -> VectorDBRequestResult:
-        """Search in Milvus"""
-        query_vector = self._generate_random_vector()
-        
-        search_params = {"metric_type": "L2", "params": {"nprobe": 10}}
-        results = self.collection.search(
-            data=[query_vector.tolist()],
-            anns_field="embedding",
-            param=search_params,
-            limit=self.search_k
-        )
         
         duration = time.time() - start_time
         return VectorDBRequestResult(
@@ -486,7 +414,13 @@ class VectorDBBenchmarkClient:
                 # Optionally delete the collection
                 # self.client.delete_collection(self.collection_name)
                 pass
-            elif self.backend == 'milvus' and self.collection:
-                self.collection.release()
+            elif self.backend == 'faiss':
+                # Explicitly clear FAISS index to prevent double-free
+                if hasattr(self, 'client') and self.client is not None:
+                    # Reset the index to avoid cleanup issues
+                    self.client.reset()
+                    self.client = None
+                if hasattr(self, 'faiss_index'):
+                    self.faiss_index = None
         except Exception as e:
             logger.warning(f"Cleanup error: {e}")

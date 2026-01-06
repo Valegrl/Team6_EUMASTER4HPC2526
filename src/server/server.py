@@ -30,6 +30,7 @@ class ServiceManager:
         self.service_type = service_config.get('service_type', 'inference')
         self.port = service_config.get('port', 11434)
         self.model = service_config.get('model', 'facebook/opt-125m')
+        self.backend = service_config.get('backend')  # For vectordb, database types
         self.slurm_config = service_config.get('slurm', {})
         self.job_id = None
         
@@ -96,23 +97,68 @@ class ServiceManager:
         script_path = script_dir / f"{self.service_name}_service.sh"
         
         # Determine container file path
-        if self.container_image:
+        # Create containers directory if it doesn't exist
+        containers_dir = Path("containers")
+        containers_dir.mkdir(exist_ok=True)
+        
+        # Services that don't need containers (run locally)
+        no_container_services = ['faiss', 'file_storage']
+        
+        # Map common service types to existing container files
+        service_container_map = {
+            'ollama': 'containers/ollama.sif',
+            'vllm': 'containers/vllm.sif',
+            'chromadb': 'containers/chromadb.sif',
+            'weaviate': 'containers/weaviate.sif',
+            'postgresql': 'containers/postgres.sif',
+            's3': 'containers/minio.sif',
+        }
+        
+        # Skip container setup for services that don't need them
+        if self.backend in no_container_services or self.service_type in no_container_services:
+            container_sif = None
+            pull_container = False
+        elif self.container_image:
             # Check if it's already a .sif file path
             if self.container_image.endswith('.sif'):
                 container_sif = self.container_image
                 pull_container = False
             # Check if it's a docker:// URI
             elif self.container_image.startswith('docker://'):
-                container_file = self.container_image.replace('docker://', '').replace('/', '_').replace(':', '_')
-                container_sif = f"{container_file}.sif"
-                pull_container = True
+                # First check if we have a pre-existing container for this service type
+                if self.service_type in service_container_map:
+                    existing_container = Path(service_container_map[self.service_type])
+                    if existing_container.exists():
+                        container_sif = str(existing_container)
+                        pull_container = False
+                        logger.info(f"Using existing container: {container_sif}")
+                    else:
+                        # Generate filename and check if it exists
+                        container_file = self.container_image.replace('docker://', '').replace('/', '_').replace(':', '_')
+                        container_sif = f"containers/{container_file}.sif"
+                        pull_container = not Path(container_sif).exists()
+                else:
+                    # Generate filename and check if it exists
+                    container_file = self.container_image.replace('docker://', '').replace('/', '_').replace(':', '_')
+                    container_sif = f"containers/{container_file}.sif"
+                    pull_container = not Path(container_sif).exists()
             else:
                 # Assume it's a file path
                 container_sif = self.container_image
                 pull_container = False
         else:
-            container_sif = f"{self.service_name}.sif"
-            pull_container = False
+            # No container image specified, check for pre-existing container
+            if self.service_type in service_container_map:
+                existing_container = Path(service_container_map[self.service_type])
+                if existing_container.exists():
+                    container_sif = str(existing_container)
+                    pull_container = False
+                else:
+                    container_sif = f"containers/{self.service_name}.sif"
+                    pull_container = not Path(container_sif).exists()
+            else:
+                container_sif = f"containers/{self.service_name}.sif"
+                pull_container = not Path(container_sif).exists()
         
         script_content = f"""#!/bin/bash -l
 #SBATCH --job-name={self.service_name}
@@ -153,20 +199,33 @@ module add Apptainer
         # Add container pull logic only if needed
         if pull_container:
             script_content += f"""
-# Pull container if needed
+# Container not found, pulling from registry
 if [ ! -f "{container_sif}" ]; then
-    echo "Pulling container image..."
+    echo "Container not found at {container_sif}"
+    echo "Pulling container image from {self.container_image}..."
+    mkdir -p containers
     apptainer pull {container_sif} {self.container_image}
+else
+    echo "Using existing container: {container_sif}"
 fi
 """
         else:
-            script_content += f"""
+            # Only check container file if we actually have one
+            if container_sif and container_sif != "None":
+                script_content += f"""
 # Using existing container image
-echo "Container image: {container_sif}"
+echo "Using container: {container_sif}"
 if [ ! -f "{container_sif}" ]; then
     echo "ERROR: Container file not found: {container_sif}"
+    echo "Available containers in containers/:"
+    ls -lh containers/ 2>/dev/null || echo "containers/ directory not found"
     exit 1
 fi
+"""
+            else:
+                script_content += f"""
+# No container needed for this service
+echo "Running {self.service_name} without container (local execution)"
 """
         
         script_content += f"""
@@ -174,14 +233,70 @@ fi
 echo "Starting {self.service_name}..."
 """
         
+        # Prepare bind mounts for writable directories
+        # Use /tmp for writable storage since $PWD might be read-only
+        bind_mounts = ""
+        if self.service_type == 'vectordb' and self.backend == 'chromadb':
+            # ChromaDB needs writable data directory
+            script_content += f"""
+# Create writable data directory for ChromaDB
+export CHROMA_DATA_DIR=/tmp/{self.service_name}_data_$$
+mkdir -p $CHROMA_DATA_DIR
+"""
+            bind_mounts = f"--bind $CHROMA_DATA_DIR:/chroma/data --env CHROMA_DATA_DIR=/chroma/data --env ALLOW_RESET=TRUE"
+        elif self.service_type == 'database' and (self.backend == 'postgresql' or 'postgres' in self.service_name.lower()):
+            # PostgreSQL needs writable data directory and runtime directory
+            script_content += f"""
+# Create writable data directory for PostgreSQL
+export PGDATA=/tmp/{self.service_name}_data_$$
+export PGRUN=/tmp/{self.service_name}_run_$$
+mkdir -p $PGDATA
+mkdir -p $PGRUN
+# Initialize database if needed
+if [ ! -f "$PGDATA/PG_VERSION" ]; then
+    echo "Initializing PostgreSQL database..."
+    apptainer exec {container_sif} initdb -D $PGDATA
+fi
+"""
+            bind_mounts = f"--bind $PGDATA:/var/lib/postgresql/data --bind $PGRUN:/var/run/postgresql"
+        elif self.service_type == 's3':
+            # MinIO needs writable data directory
+            script_content += f"""
+# Create writable data directory for MinIO
+export MINIO_DATA_DIR=/tmp/{self.service_name}_data_$$
+mkdir -p $MINIO_DATA_DIR
+"""
+            bind_mounts = f"--bind $MINIO_DATA_DIR:/data --env MINIO_ROOT_USER=minioadmin --env MINIO_ROOT_PASSWORD=minioadmin"
+        elif self.service_type == 'vectordb' and self.backend == 'weaviate':
+            # Weaviate needs writable data directory
+            script_content += f"""
+# Create writable data directory for Weaviate
+export WEAVIATE_DATA_DIR=/tmp/{self.service_name}_data_$$
+mkdir -p $WEAVIATE_DATA_DIR
+"""
+            bind_mounts = f"--bind $WEAVIATE_DATA_DIR:/var/lib/weaviate --env PERSISTENCE_DATA_PATH=/var/lib/weaviate"
+        elif self.service_type == 'triton':
+            # Triton needs model repository
+            script_content += f"""
+# Create model repository directory for Triton
+export TRITON_MODEL_REPO=/tmp/{self.service_name}_models_$$
+mkdir -p $TRITON_MODEL_REPO
+echo "WARNING: Triton model repository is empty. Add models to $TRITON_MODEL_REPO for actual inference."
+"""
+            bind_mounts = f"--bind $TRITON_MODEL_REPO:/models"
+        
         # For vLLM, downgrade NumPy first to fix compatibility issue
         if self.service_type == 'vllm':
             script_content += f"""echo "Fixing NumPy version for vLLM compatibility..."
 apptainer exec --nv {container_sif} pip install --quiet 'numpy<2.3' 2>/dev/null || echo "NumPy already compatible"
-apptainer exec --nv {container_sif} {self._get_service_command()} &
+apptainer exec --nv {bind_mounts} {container_sif} {self._get_service_command()} &
+"""
+        elif container_sif and container_sif != "None":
+            script_content += f"""apptainer exec --nv {bind_mounts} {container_sif} {self._get_service_command()} &
 """
         else:
-            script_content += f"""apptainer exec --nv {container_sif} {self._get_service_command()} &
+            # No container needed, run command directly
+            script_content += f"""{self._get_service_command()} &
 """
         
         script_content += f"""SERVICE_PID=$!
@@ -245,7 +360,36 @@ wait $SERVICE_PID
         elif self.service_type == 'vllm':
             # Use python3 and OpenAI-compatible API endpoint
             return f"python3 -m vllm.entrypoints.openai.api_server --model {self.model} --host 0.0.0.0 --port {self.port}"
+        elif self.service_type == 'triton':
+            # Triton Inference Server
+            return f"tritonserver --model-repository=/models --http-port={self.port}"
+        elif self.service_type == 'vectordb':
+            backend = self.backend or self.service_name
+            if 'chromadb' in backend or 'chroma' in self.service_name.lower():
+                return f"chroma run --host 0.0.0.0 --port {self.port} --path /chroma/data"
+            elif 'faiss' in backend or 'faiss' in self.service_name.lower():
+                # FAISS runs as a Python library, not a standalone service
+                return "python3 -c 'import time; print(\"FAISS service ready (local library)\"); time.sleep(3600)'"
+            elif 'weaviate' in backend or 'weaviate' in self.service_name.lower():
+                return f"/bin/weaviate --host 0.0.0.0 --port {self.port} --scheme http"
+            else:
+                return "echo 'VectorDB service started'"
+        elif self.service_type == 'database':
+            backend = self.backend or 'postgresql'
+            if backend == 'postgresql' or 'postgres' in self.service_name.lower():
+                # PostgreSQL startup command
+                return f"postgres -D /var/lib/postgresql/data -p {self.port}"
+            else:
+                return "echo 'Database service started'"
+        elif self.service_type == 's3':
+            # MinIO server
+            data_dir = getattr(self, 'data_dir', '/data')
+            return f"minio server {data_dir} --address 0.0.0.0:9000 --console-address 0.0.0.0:9001"
+        elif self.service_type == 'file_storage':
+            # File storage doesn't need a service, it's direct filesystem access
+            return "python3 -c 'import time; print(\"File storage service ready\"); time.sleep(3600)'"
         else:
+            logger.warning(f"Unknown service type: {self.service_type}, using placeholder command")
             return "echo 'Service started'"
     
     def stop_service(self) -> bool:

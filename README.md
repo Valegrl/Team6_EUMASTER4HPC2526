@@ -58,7 +58,7 @@ Include benchmarks for:
 
 - File storage, relational databases (e.g., PostgreSQL), and object storage (e.g., S3)
 - Inference servers (vLLM, Triton, etc.)
-- Vector databases (Chroma, Faiss, Milvus, Weaviate)
+- Vector databases (Chroma, Faiss, Weaviate)
 - Enable reproducible, modular benchmarking scenarios using Slurm orchestration.
 - Provide comparative insights, performance guidelines, and scalability assessments.
 

@@ -126,31 +126,6 @@ services:
       insert: 0.4
       search: 0.6
   
-  # Milvus Vector Database
-  - service_name: milvus
-    service_type: vectordb
-    backend: milvus
-    container_image: docker://milvusdb/milvus:latest
-    host: localhost
-    port: 19530
-    client_count: 10
-    requests_per_second: 50
-    duration: 300
-    slurm:
-      partition: gpu
-      account: p200981
-      time: "01:00:00"
-      nodes: 1
-      ntasks: 1
-      gres: gpu:1
-      qos: default
-    collection_name: benchmark_collection
-    dimension: 384
-    operation_mix:
-      insert: 0.3
-      search: 0.6
-      delete: 0.1
-  
   # Weaviate Vector Database
   - service_name: weaviate
     service_type: vectordb

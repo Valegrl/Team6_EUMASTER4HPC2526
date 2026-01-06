@@ -1,4 +1,4 @@
-# AI Factory Benchmarking Framework
+meluxina_simulation_guide# AI Factory Benchmarking Framework
 
 ## Complete Guide to HPC Benchmarking of AI Infrastructure
 
@@ -37,7 +37,7 @@ The AI Factory Benchmarking Framework is a comprehensive, production-ready solut
 
 ✅ **Comprehensive Service Support**
 - LLM Inference: Ollama, vLLM, Triton
-- Vector Databases: ChromaDB, Faiss, Milvus, Weaviate
+- Vector Databases: ChromaDB, Faiss, Weaviate
 - Relational Databases: PostgreSQL
 - Object Storage: S3-compatible (MinIO)
 - File Storage: POSIX filesystem benchmarking
@@ -151,7 +151,6 @@ psycopg2-binary>=2.9.0
 boto3>=1.28.0
 chromadb>=0.4.0
 faiss-cpu>=1.7.4
-pymilvus>=2.3.0
 weaviate-client>=3.24.0
 prometheus-client>=0.18.0
 rich>=13.0.0
@@ -757,6 +756,23 @@ python src/main.py --recipe recipe.yml
 exit
 ```
 
+### 6.4 Parallel vs Sequential Benchmarking
+
+By default, benchmarks run **in parallel** (up to 10x faster):
+
+```bash
+# Parallel (default) - 10 services in ~5 min instead of ~50 min
+python src/main.py --recipe recipe_comprehensive.yml
+
+# Customize workers
+python src/main.py --recipe recipe_comprehensive.yml --max-workers 10
+
+# Sequential (for debugging)
+python src/main.py --recipe recipe_comprehensive.yml --sequential
+```
+
+**Note:** Reduce `--max-workers` if experiencing high CPU/memory usage.
+
 ---
 
 ## 7. Monitoring and Visualization
@@ -1103,7 +1119,6 @@ done
 |-----------|--------------|-----|----------------------------|
 | ChromaDB  | HTTP         | ✓   | Full CRUD, Collections     |
 | Faiss     | In-memory    | ✓   | Fast similarity search, GPU acceleration |
-| Milvus    | gRPC         | ✓   | Distributed, GPU support   |
 | Weaviate  | HTTP         | ✓   | GraphQL, semantic search, GPU-accelerated |
 
 ### 9.3 Traditional Databases
@@ -1170,7 +1185,7 @@ slurm:
 All services in the AI Factory Benchmarking Framework now support GPU acceleration for enhanced performance:
 
 **LLM Inference Services**: Ollama, vLLM, and Triton utilize GPUs for model inference
-**Vector Databases**: ChromaDB, Faiss, Milvus, and Weaviate leverage GPU for accelerated similarity search and indexing
+**Vector Databases**: ChromaDB, Faiss, and Weaviate leverage GPU for accelerated similarity search and indexing
 **Database Systems**: PostgreSQL can use GPU for query acceleration  
 **Storage Systems**: MinIO and File Storage can benefit from GPU-accelerated I/O operations
 
@@ -1185,7 +1200,6 @@ slurm:
 For containers, use the `--nv` flag with Apptainer to enable NVIDIA GPU support:
 ```bash
 apptainer run --nv chromadb.sif
-apptainer run --nv milvus.sif
 apptainer run --nv postgres.sif
 ```
 

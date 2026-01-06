@@ -51,7 +51,18 @@ class S3BenchmarkClient:
         Args:
             config: Configuration with S3 connection details
         """
-        self.endpoint_url = config.get('endpoint_url', None)
+        # Parse service_url if provided for endpoint_url
+        service_url = config.get('service_url', '')
+        if service_url and not config.get('endpoint_url'):
+            # Use service_url as endpoint_url if endpoint_url not explicitly set
+            # Convert port to MinIO's default 9000 if needed
+            from urllib.parse import urlparse, urlunparse
+            parsed = urlparse(service_url)
+            # Reconstruct with port 9000 for MinIO
+            self.endpoint_url = f"{parsed.scheme}://{parsed.hostname}:9000"
+        else:
+            self.endpoint_url = config.get('endpoint_url', None)
+            
         self.access_key = config.get('access_key', '')
         self.secret_key = config.get('secret_key', '')
         self.bucket_name = config.get('bucket_name', 'benchmark-bucket')
